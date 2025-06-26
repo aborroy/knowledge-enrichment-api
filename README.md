@@ -1,8 +1,23 @@
 # Knowledge Enrichment API Gateway
 
-> *The one‑stop Spring Boot service that lets you experiment locally with [Hyland Knowledge Enrichment](https://www.hyland.com/en/resources/articles/what-can-you-do-with-knowledge-enrichment) SaaS APIs*
+*The one‑stop Spring Boot service that lets you experiment locally with [Hyland Knowledge Enrichment](https://www.hyland.com/en/resources/articles/what-can-you-do-with-knowledge-enrichment) SaaS APIs*
 
-> Upload any document, choose the actions you want (summarisation, entity extraction, OCR...), poll for the results, or feed a PDF into the curation pipeline and watch it get normalised, chunked and embedded.
+Upload any document, choose the actions you want (summarisation, entity extraction, OCR...), poll for the results, or feed a PDF into the curation pipeline and watch it get normalised, chunked and embedded.
+
+## Table of Contents
+
+- [Why this exists](#why-this-exists)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+- [HTTP API](#http-api)
+  - [Context Enrichment](#context-enrichment)
+  - [Data Curation](#data-curation)
+- [Smoke‑test recipes](#smoke‑test-recipes)
+- [Internals worth knowing](#internals-worth-knowing)
+- [Sequence diagrams](#sequence-diagrams)
+  - [Context Enrichment life‑cycle](#context-enrichment-life‑cycle)
+  - [Data Curation life‑cycle](#data-curation-life‑cycle)
+- [Additional Resources](#additional-resources)
 
 ## Why this exists
 
@@ -204,3 +219,8 @@ sequenceDiagram
     %% 5 – final HTTP response
     Controller -->> Client: 200 OK (results) | 5xx on failure
 ```
+
+## Additional Resources
+
+* Official Documentation: https://hyland.github.io/ContentIntelligence-Docs/KnowledgeEnrichment
+* Beta Program: https://www.hyland.com/en/learn/it/beta-program
