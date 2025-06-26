@@ -35,10 +35,7 @@ public class OAuthTokenManager {
         if (cached != null && cached.isValid()) {
             return cached.token();
         }
-
-        String token = requestToken(props, scope);
-        cacheToken(cacheKey, token);
-        return token;
+        return requestToken(props, scope);
     }
 
     /**
@@ -64,9 +61,14 @@ public class OAuthTokenManager {
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(form, headers);
 
         ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                tokenUrl, HttpMethod.POST, request, new ParameterizedTypeReference<>() {});
+                tokenUrl, HttpMethod.POST, request, new ParameterizedTypeReference<>() {}
+        );
 
-        return (String) response.getBody().get("access_token");
+        String token = (String) response.getBody().get("access_token");
+        Number expiresIn = (Number) response.getBody().getOrDefault("expires_in", 900);
+        cacheToken(props.getClientId(), token, expiresIn.longValue());
+
+        return token;
     }
 
     /**
@@ -74,13 +76,12 @@ public class OAuthTokenManager {
      *
      * @param key cache key to store the token under
      * @param token the access token to cache
+     * @param expiresInSeconds number of seconds for expiration
      */
-    private void cacheToken(String key, String token) {
-        Duration cacheDuration = appProperties.getSecurity().getTokenCacheDuration();
-        long expiry = System.currentTimeMillis() + cacheDuration.toMillis();
-        tokenCache.put(key, new CachedToken(token, expiry));
+    private void cacheToken(String key, String token, long expiresInSeconds) {
+        long expiryMillis = System.currentTimeMillis() + (expiresInSeconds * 1000);
+        tokenCache.put(key, new CachedToken(token, expiryMillis));
     }
-
     /**
      * Holds a cached token with its expiration timestamp.
      *

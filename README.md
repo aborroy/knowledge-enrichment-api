@@ -9,6 +9,7 @@ Upload any document, choose the actions you want (summarisation, entity extracti
 - [Why this exists](#why-this-exists)
 - [Quick start](#quick-start)
 - [Configuration](#configuration)
+- [Running with Docker](#running-with-docker)
 - [HTTP API](#http-api)
   - [Context Enrichment](#context-enrichment)
   - [Data Curation](#data-curation)
@@ -61,6 +62,14 @@ export $(grep -v '^#' .env | xargs)         # linux/mac
 | `DATA_CURATION_OAUTH_URL` / `CONTEXT_ENRICHMENT_OAUTH_URL`         | OAuth token endpoint                                            |
 
 Copy `application.yaml` if you need to tweak ports or logging.
+
+## Running with Docker
+
+Start the application by running
+
+`docker compose up --build`
+
+The application will be available at http://localhost:8080.
 
 ## HTTP API
 
