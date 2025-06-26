@@ -101,33 +101,57 @@ curl --request POST \
 
 ## Sequence diagrams
 
-Below you’ll find end‑to‑end sequence diagrams that show every hop—from the first `curl` to the SaaS micro‑service and back
+Below you’ll find end‑to‑end sequence diagrams that show every hop from the first `curl` to the SaaS micro‑service and back
 
 ### Context Enrichment life‑cycle
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Client
-    participant Gateway
-    participant OAuth as OAuth2
-    participant CEAPI as Context Enrichment API
+    %% Actors
+    participant Client            as Caller (browser / service)
+    participant Controller        as ContextEnrichmentController
+    participant CEClient          as ContextEnrichmentClient
+    participant S3                as Amazon S3 (pre-signed)
+    participant CEAPI             as Context-Enrichment API
 
-    Client->>Gateway: POST /context/upload (file + actions)
-    alt token expired
-        Gateway->>OAuth: Get access token
-        OAuth-->>Gateway: access_token
-    end
-    Gateway->>CEAPI: POST /jobs (payload)
-    CEAPI-->>Gateway: { jobId }
-    Gateway-->>Client: { jobId }
+    %% 1. initial HTTP request
+    Client  ->>  Controller: POST /context/process\n(file, actions)
 
-    loop until DONE
-        Client->>Gateway: GET /context/results/{jobId}
-        Gateway->>CEAPI: GET /jobs/{jobId}
-        CEAPI-->>Gateway: status or final result
-        Gateway-->>Client: status or final result
+    %% 2. request upload URL
+    Controller  ->>  CEClient: getPresignedUrl(contentType)
+    CEClient    ->>  CEAPI: GET /files/upload/presigned-url?contentType=…
+    CEAPI       -->> CEClient: { presignedUrl, objectKey }
+    CEClient    -->> Controller: presignedUrl & objectKey
+
+    %% 3. upload original file to S3
+    Controller  ->>  CEClient: uploadFileFromMemory(presignedUrl, bytes, contentType)
+    CEClient    ->>  S3: HTTP PUT (binary payload via presignedUrl)
+
+    %% 4. start enrichment job
+    Controller  ->>  CEClient: processContent(objectKey, actions)
+    CEClient    ->>  CEAPI: POST /content/process\n{ objectKeys, actions }
+    CEAPI       -->> CEClient: jobId
+    CEClient    -->> Controller: jobId
+
+    %% 5. polling loop
+    loop every 2 s up to 30 attempts
+        Controller  ->>  CEClient: getResults(jobId)
+        CEClient    ->>  CEAPI: GET /content/process/{jobId}/results
+        CEAPI       -->> CEClient: { inProgress | status }
+        alt inProgress == true
+            CEClient -->> Controller: still running
+        else status == SUCCESS
+            CEClient -->> Controller: results JSON
+            break
+        else status in {FAILED, ERROR}
+            CEClient -->> Controller: error details
+            break
+        end
     end
+
+    %% 6. final HTTP response
+    Controller  -->>  Client: 200 OK (results) | 5xx on failure
 ```
 
 ### Data Curation life‑cycle
@@ -135,29 +159,52 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Client
-    participant Gateway
-    participant OAuth as OAuth2
-    participant DCAPI as Data Curation API
-    participant S3 as S3 (presigned URL)
+    %% Actors
+    participant Client       as Caller (browser / service)
+    participant Controller   as DataCurationController
+    participant DCClient     as DataCurationClient
+    participant S3           as Amazon S3 (presigned)
+    participant DCAPI        as Data-Curation API
 
-    Client->>Gateway: POST /data-curation/upload (file + flags)
-    alt token expired
-        Gateway->>OAuth: Get access token
-        OAuth-->>Gateway: access_token
-    end
-    Gateway->>DCAPI: POST /pipelines (payload)
-    DCAPI-->>Gateway: { jobId }
-    Gateway-->>Client: { jobId }
+    %% 1 — initial HTTP request
+    Client      ->> Controller: POST /data-curation/process\n(file + flags)
 
-    loop until DONE
-        Client->>Gateway: GET /data-curation/poll_results/{jobId}
-        Gateway->>DCAPI: GET /pipelines/{jobId}
-        DCAPI-->>Gateway: status or presigned URL
+    %% 2 — obtain presigned info & job-id
+    Controller  ->> DCClient: presign(fileName, options)
+    DCClient    ->> DCAPI: POST /presign { fileName, options }
+    DCAPI       -->> DCClient: { put_url, get_url, job_id }
+    DCClient    -->> Controller: put_url · get_url · job_id
+
+    %% 3 — upload original file to S3
+    Controller  ->> DCClient: putToS3(put_url, bytes, contentType)
+    DCClient    ->> S3: HTTP PUT (binary payload via put_url)
+
+    %% 4 — polling loop until job finishes
+    loop every 5 s (max 60 times)
+        Controller  ->> DCClient: status(job_id)
+        DCClient    ->> DCAPI: GET /status/{job_id}
+        DCAPI       -->> DCClient: { status }
+
         alt status == DONE
-            Gateway->>S3: GET {url}
-            S3-->>Gateway: curated JSON
+            %% 4a — try the presigned results first
+            Controller  ->> DCClient: getPresignedResults(get_url)
+            DCClient    ->> S3: HTTP GET (results JSON)
+            alt JSON valid
+                DCClient -->> Controller: results map
+            else invalid/empty
+                %% 4b — fallback to authenticated API
+                Controller  ->> DCClient: results(job_id)
+                DCClient    ->> DCAPI: GET /results/{job_id}
+                DCAPI       -->> DCClient: results map
+                DCClient    -->> Controller: results map
+            end
+            break
+        else status ∈ {FAILED, ERROR}
+            DCClient -->> Controller: error details
+            break
         end
-        Gateway-->>Client: status or curated JSON
     end
+
+    %% 5 — final HTTP response
+    Controller  -->> Client: 200 OK (results) | 5xx on failure
 ```
