@@ -54,16 +54,13 @@ Copy `application.yaml` if you need to tweak ports or logging.
 | Method | Path                         | Body / Query                                | Purpose                                   |
 | :----- | :--------------------------- | :------------------------------------------ | :---------------------------------------- |
 | `GET`  | `/context/available_actions` | –                                           | List actions supported by the remote SaaS |
-| `POST` | `/context/upload`            | `multipart/form-data` ⇒ `file`, `actions[]` | Upload a blob and start a job             |
-| `GET`  | `/context/results/{jobId}`   | –                                           | Fetch the final JSON result               |
+| `POST` | `/context/process`            | `multipart/form-data` ⇒ `file`, `actions[]` | Upload a blob and fetch the result             |
 
 ### Data Curation
 
 | Method | Path                                  | Body                                                             | Purpose                                      |
 | :----- | :------------------------------------ | :--------------------------------------------------------------- | :------------------------------------------- |
-| `POST` | `/data-curation/upload`               | `file`, `normalization`, `chunking`, `embedding`, `[jsonSchema]` | Kick off the pipeline                        |
-| `GET`  | `/data-curation/status/{jobId}`       | –                                                                | Current job state                            |
-| `GET`  | `/data-curation/poll_results/{jobId}` | –                                                                | Cached presigned‑URL read or bearer fallback |
+| `POST` | `/data-curation/process`               | `file`, `normalization`, `chunking`, `embedding`                | Upload a blob and fetch the result             |
 
 ## Smoke‑test recipes
 
@@ -71,48 +68,28 @@ Below are copy‑paste‑ready `curl` calls that hit every endpoint in order. Re
 
 ```bash
 # Discover what the SaaS can do
-curl --silent --request GET \
+curl --request GET \
   --url http://localhost:8080/context/available_actions
 ```
 
 ```bash
-# Kick off summarisation on a Japanese PDF
+# Get summarisation on a PDF
 curl --request POST \
-  --url http://localhost:8080/context/upload \
+  --url http://localhost:8080/context/process \
   --header 'Content-Type: multipart/form-data' \
   --form actions=text-summarization \
-  --form 'file=@日本.pdf'
-# Response: {"jobId":"f221c1d0-b8a8-4dfd-97ba-cd174fdd9d75"}
+  --form file=@somatosensory.pdf
 ```
 
 ```bash
-# Wait for the job to finish, then fetch the result
-curl --request GET \
-  --url http://localhost:8080/context/results/f221c1d0-b8a8-4dfd-97ba-cd174fdd9d75
-```
-
-```bash
-# Run the full curation pipeline
+# Run the full curation pipeline for a PDF
 curl --request POST \
-  --url http://localhost:8080/data-curation/upload \
+  --url http://localhost:8080/data-curation/process \
   --header 'Content-Type: multipart/form-data' \
-  --form file=@file.pdf \
+  --form file=@somatosensory.pdf \
   --form normalization=true \
   --form chunking=true \
   --form embedding=true
-# Response: {{ "jobId": "API_134887c2-fab3-4d76-a7cf-9cb352b31afe", "getUrl": "..." }}
-```
-
-```bash
-# Check status (optional – poll_results does this automatically)
-curl --request GET \
-  --url http://localhost:8080/data-curation/status/API_134887c2-fab3-4d76-a7cf-9cb352b31afe
-```
-
-```bash
-# Poll until DONE and retrieve the final JSON
-curl --request GET \
-  --url http://localhost:8080/data-curation/poll_results/API_134887c2-fab3-4d76-a7cf-9cb352b31afe
 ```
 
 ## Internals worth knowing
