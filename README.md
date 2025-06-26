@@ -108,50 +108,49 @@ Below you’ll find end‑to‑end sequence diagrams that show every hop from th
 ```mermaid
 sequenceDiagram
     autonumber
-    %% Actors
-    participant Client            as Caller (browser / service)
-    participant Controller        as ContextEnrichmentController
-    participant CEClient          as ContextEnrichmentClient
-    participant S3                as Amazon S3 (pre-signed)
-    participant CEAPI             as Context-Enrichment API
+    participant Client      as "Caller (browser / service)"
+    participant Controller  as "ContextEnrichmentController"
+    participant CEClient    as "ContextEnrichmentClient"
+    participant S3          as "Amazon S3 (pre-signed)"
+    participant CEAPI       as "Context-Enrichment API"
 
-    %% 1. initial HTTP request
-    Client  ->>  Controller: POST /context/process\n(file, actions)
+    %% 1 — initial HTTP request
+    Client      ->> Controller: POST /context/process (file, actions)
 
-    %% 2. request upload URL
-    Controller  ->>  CEClient: getPresignedUrl(contentType)
-    CEClient    ->>  CEAPI: GET /files/upload/presigned-url?contentType=…
-    CEAPI       -->> CEClient: { presignedUrl, objectKey }
-    CEClient    -->> Controller: presignedUrl & objectKey
+    %% 2 — request upload URL
+    Controller  ->> CEClient: getPresignedUrl(contentType)
+    CEClient    ->> CEAPI:   GET /files/upload/presigned-url?contentType=…
+    CEAPI       -->> CEClient: presignedUrl, objectKey
+    CEClient    -->> Controller: presignedUrl, objectKey
 
-    %% 3. upload original file to S3
-    Controller  ->>  CEClient: uploadFileFromMemory(presignedUrl, bytes, contentType)
-    CEClient    ->>  S3: HTTP PUT (binary payload via presignedUrl)
+    %% 3 — upload original file to S3
+    Controller  ->> CEClient: uploadFileFromMemory(presignedUrl, bytes, contentType)
+    CEClient    ->> S3:      HTTP PUT (binary payload via presignedUrl)
 
-    %% 4. start enrichment job
-    Controller  ->>  CEClient: processContent(objectKey, actions)
-    CEClient    ->>  CEAPI: POST /content/process\n{ objectKeys, actions }
+    %% 4 — start enrichment job
+    Controller  ->> CEClient: processContent(objectKey, actions)
+    CEClient    ->> CEAPI:   POST /content/process {objectKeys, actions}
     CEAPI       -->> CEClient: jobId
     CEClient    -->> Controller: jobId
 
-    %% 5. polling loop
-    loop every 2 s up to 30 attempts
-        Controller  ->>  CEClient: getResults(jobId)
-        CEClient    ->>  CEAPI: GET /content/process/{jobId}/results
-        CEAPI       -->> CEClient: { inProgress | status }
-        alt inProgress == true
+    %% 5 — polling loop
+    loop every 2 s (max 30 attempts)
+        Controller ->> CEClient: getResults(jobId)
+        CEClient   ->> CEAPI:   GET /content/process/{jobId}/results
+        CEAPI      -->> CEClient: inProgress?, status
+        alt inProgress
             CEClient -->> Controller: still running
-        else status == SUCCESS
+        else success
             CEClient -->> Controller: results JSON
             break
-        else status in {FAILED, ERROR}
+        else failure
             CEClient -->> Controller: error details
             break
         end
     end
 
-    %% 6. final HTTP response
-    Controller  -->>  Client: 200 OK (results) | 5xx on failure
+    %% 6 — final HTTP response
+    Controller -->> Client: 200 OK (results) | 5xx on failure
 ```
 
 ### Data Curation life‑cycle
@@ -159,52 +158,54 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    %% Actors
-    participant Client       as Caller (browser / service)
-    participant Controller   as DataCurationController
-    participant DCClient     as DataCurationClient
-    participant S3           as Amazon S3 (presigned)
-    participant DCAPI        as Data-Curation API
+    participant Client      as "Caller (browser / service)"
+    participant Controller  as "DataCurationController"
+    participant DCClient    as "DataCurationClient"
+    participant S3          as "Amazon S3 (presigned)"
+    participant DCAPI       as "Data-Curation API"
 
     %% 1 — initial HTTP request
-    Client      ->> Controller: POST /data-curation/process\n(file + flags)
+    Client      ->> Controller: POST /data-curation/process (file + flags)
 
     %% 2 — obtain presigned info & job-id
     Controller  ->> DCClient: presign(fileName, options)
-    DCClient    ->> DCAPI: POST /presign { fileName, options }
-    DCAPI       -->> DCClient: { put_url, get_url, job_id }
-    DCClient    -->> Controller: put_url · get_url · job_id
+    DCClient    ->> DCAPI:   POST /presign {fileName, options}
+    DCAPI       -->> DCClient: put_url, get_url, job_id
+    DCClient    -->> Controller: put_url, get_url, job_id
 
     %% 3 — upload original file to S3
     Controller  ->> DCClient: putToS3(put_url, bytes, contentType)
-    DCClient    ->> S3: HTTP PUT (binary payload via put_url)
+    DCClient    ->> S3:      HTTP PUT (binary payload via put_url)
 
     %% 4 — polling loop until job finishes
-    loop every 5 s (max 60 times)
-        Controller  ->> DCClient: status(job_id)
-        DCClient    ->> DCAPI: GET /status/{job_id}
-        DCAPI       -->> DCClient: { status }
+    loop every 5 s (max 60 attempts)
+        Controller ->> DCClient: status(job_id)
+        DCClient   ->> DCAPI:   GET /status/{job_id}
+        DCAPI      -->> DCClient: status
 
         alt status == DONE
             %% 4a — try the presigned results first
-            Controller  ->> DCClient: getPresignedResults(get_url)
-            DCClient    ->> S3: HTTP GET (results JSON)
-            alt JSON valid
+            Controller ->> DCClient: getPresignedResults(get_url)
+            DCClient   ->> S3:      HTTP GET (results JSON)
+            alt results present
                 DCClient -->> Controller: results map
-            else invalid/empty
+            else results missing
                 %% 4b — fallback to authenticated API
-                Controller  ->> DCClient: results(job_id)
-                DCClient    ->> DCAPI: GET /results/{job_id}
-                DCAPI       -->> DCClient: results map
-                DCClient    -->> Controller: results map
+                Controller ->> DCClient: results(job_id)
+                DCClient   ->> DCAPI:  GET /results/{job_id}
+                DCAPI      -->> DCClient: results map
+                DCClient   -->> Controller: results map
             end
             break
-        else status ∈ {FAILED, ERROR}
+        else status == FAILED
+            DCClient -->> Controller: error details
+            break
+        else status == ERROR
             DCClient -->> Controller: error details
             break
         end
     end
 
     %% 5 — final HTTP response
-    Controller  -->> Client: 200 OK (results) | 5xx on failure
+    Controller -->> Client: 200 OK (results) | 5xx on failure
 ```
