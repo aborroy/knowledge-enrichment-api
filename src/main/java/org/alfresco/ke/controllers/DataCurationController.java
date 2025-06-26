@@ -42,6 +42,7 @@ public class DataCurationController {
      * @param normalization  whether to run textual normalisation
      * @param chunking       whether to chunk the document
      * @param embedding      whether to generate embeddings
+     * @param jsonSchema     Possible values: [MDAST, FULL, PIPELINE]
      * @return final result map produced by the data‑curation service
      * @throws IOException if the upload fails to read the file or transmit bytes
      */
@@ -50,13 +51,15 @@ public class DataCurationController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(defaultValue = "false") boolean normalization,
             @RequestParam(defaultValue = "false") boolean chunking,
-            @RequestParam(defaultValue = "false") boolean embedding) throws IOException {
+            @RequestParam(defaultValue = "false") boolean embedding,
+            @RequestParam(defaultValue = "MDAST") String jsonSchema) throws IOException {
 
         var presigned = dc.presign(
                 file.getOriginalFilename(),
                 Map.of("normalization", normalization,
                         "chunking", chunking,
-                        "embedding", embedding));
+                        "embedding", embedding,
+                        "json_schema", jsonSchema));
 
         dc.putToS3(presigned.get("put_url").toString(), file.getBytes(), file.getContentType());
 

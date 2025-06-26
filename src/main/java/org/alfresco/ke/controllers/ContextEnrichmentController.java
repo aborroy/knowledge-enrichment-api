@@ -34,7 +34,7 @@ public class ContextEnrichmentController {
     /**
      * Lists the processing actions currently exposed by the Context‑Enrichment service.
      *
-     * @return array of action names (e.g. {@code TRANSLATE}, {@code SUMMARISE}, …)
+     * @return array of action names (e.g. {@code TRANSLATE}, {@code SUMMARISE}, ...)
      */
     @GetMapping("/available_actions")
     public ResponseEntity<List<String>> availableActions() {
