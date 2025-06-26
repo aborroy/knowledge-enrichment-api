@@ -1,8 +1,5 @@
 # Knowledge Enrichment API Gateway
 
-[![CI](https://github.com/your-org/knowledge-enrichment-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/knowledge-enrichment-gateway/actions/workflows/ci.yml)
-[![Maven Central](https://img.shields.io/maven-central/v/com.yourorg/knowledge-enrichment-gateway)](https://central.sonatype.com/artifact/com.yourorg/knowledge-enrichment-gateway)
-[![License](https://img.shields.io/github/license/your-org/knowledge-enrichment-gateway)](LICENSE)
 [![Java](https://img.shields.io/badge/java-21+-blue?logo=java)](https://openjdk.org/projects/jdk/21/)
 
 > **A lightweight Spring Boot proxy that lets you prototype locally against the Hyland Knowledge Enrichment SaaS APIs: no S3 juggling or OAuth plumbing required.**
