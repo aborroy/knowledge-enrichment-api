@@ -33,7 +33,7 @@ Hyland Knowledge Enrichment currently offers two public SaaS endpoints:
 
 | Service                | Purpose                                                                       | Output            |
 | ---------------------- | ----------------------------------------------------------------------------- | ----------------- |
-| **Context Enrichment** | Run one‑off AI actions—summarise, translate, redact PII—on a single binary    | JSON              |
+| **Context Enrichment** | Run one‑off AI actions (summarise, translate, redact PII...) on a single binary    | JSON              |
 | **Data Curation**      | Normalise, chunk and embed large documents for retrieval‑augmented generation | Vector‑ready JSON |
 
 Both sit behind OAuth2 and presigned S3 URLs. This gateway abstracts that complexity so you can focus on experimenting, demoing or integrating.
