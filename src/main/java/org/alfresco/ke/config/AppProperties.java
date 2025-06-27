@@ -1,11 +1,8 @@
 package org.alfresco.ke.config;
 
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
-
-import java.time.Duration;
 
 /**
  * Main configuration properties bound from application.yml or application.properties using prefix 'app'.

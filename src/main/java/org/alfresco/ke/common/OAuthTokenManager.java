@@ -10,7 +10,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,7 +23,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class OAuthTokenManager {
 
     private final RestTemplate restTemplate;
-    private final AppProperties appProperties;
     private final Map<String, CachedToken> tokenCache = new ConcurrentHashMap<>();
 
     /**

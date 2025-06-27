@@ -45,7 +45,7 @@ public class ContextEnrichmentController {
      * Streams a file to S3, triggers the Context‑Enrichment job with the requested actions, blocks until the job
      * finishes, and returns the final JSON result.
      *
-     * @param file    multipart upload from the HTTP request
+     * @param file multipart upload from the HTTP request
      * @param actions actions to apply (must be recognised by the service)
      * @return final result map once the job completes successfully
      * @throws IOException if the upload cannot read or transmit bytes
@@ -56,10 +56,9 @@ public class ContextEnrichmentController {
             @RequestParam("actions") List<String> actions) throws IOException {
 
         String contentType = ContentTypeUtils.determineContentType(file);
-        byte[] payload     = file.getBytes();
 
         Map<String, Object> presigned = client.getPresignedUrl(contentType);
-        client.uploadFileFromMemory(presigned.get("presignedUrl").toString(), payload, contentType);
+        client.uploadFileFromMemory(presigned.get("presignedUrl").toString(), file.getBytes(), contentType);
 
         String jobId = client.processContent(presigned.get("objectKey").toString(), actions);
 
@@ -82,7 +81,7 @@ public class ContextEnrichmentController {
                 Map<String, Object> resp = client.getResults(jobId);
 
                 boolean inProgress = (boolean) resp.getOrDefault("inProgress", true);
-                if (inProgress) continue; // keep waiting
+                if (inProgress) continue;
 
                 String status = String.valueOf(resp.getOrDefault("status", "UNKNOWN")).toUpperCase();
                 switch (status) {
