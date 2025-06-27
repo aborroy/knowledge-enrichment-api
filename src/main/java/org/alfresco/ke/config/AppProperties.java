@@ -15,18 +15,18 @@ public class AppProperties {
     /**
      * Configuration for the Data Curation API.
      */
-    private final ApiProperties dataCuration = new ApiProperties();
+    private final ServiceConfig dataCuration = new ServiceConfig();
 
     /**
      * Configuration for the Context Enrichment API.
      */
-    private final ApiProperties contextEnrichment = new ApiProperties();
+    private final ServiceConfig contextEnrichment = new ServiceConfig();
 
     /**
-     * Generic API configuration: credentials and endpoints.
+     * Generic service configuration: credentials and endpoints.
      */
     @Data
-    public static class ApiProperties {
+    public static class ServiceConfig {
         private String clientId;
         private String clientSecret;
         private String apiUrl;

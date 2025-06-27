@@ -28,7 +28,7 @@ public class OAuthTokenManager {
     /**
      * Gets a valid access token from cache or fetches a new one.
      */
-    public String getAccessToken(AppProperties.ApiProperties props, String scope, String cacheKey) {
+    public String getAccessToken(AppProperties.ServiceConfig props, String scope, String cacheKey) {
         CachedToken cached = tokenCache.get(cacheKey);
         if (cached != null && cached.isValid()) {
             return cached.token();
@@ -43,7 +43,7 @@ public class OAuthTokenManager {
      * @param scope OAuth scope to request for the token
      * @return the access token string
      */
-    private String requestToken(AppProperties.ApiProperties props, String scope) {
+    private String requestToken(AppProperties.ServiceConfig props, String scope) {
         String tokenUrl = props.getOauthUrl() + "/connect/token";
 
         HttpHeaders headers = new HttpHeaders();
